@@ -1,4 +1,4 @@
-import { DataTypes, Model, Op, BelongsToManyAddAssociationsMixin, BelongsToManySetAssociationsMixin } from 'sequelize';
+import { DataTypes, Model, Op, BelongsToManyAddAssociationsMixin, BelongsToManySetAssociationsMixin, fn, col, where } from 'sequelize';
 import { sequelizeMovies } from '../config/movies.database';
 import { Actor } from './actor.model';
 //import parseMoviesFromTxt from '../utils/fileParser';
@@ -14,7 +14,9 @@ export class Movie extends Model {
   public setActors!: BelongsToManySetAssociationsMixin<Actor, number>;
 
   public actors?: Actor[]; // асоційовані актори (через .include)
-
+  
+  public readonly createdAt!: Date;
+  public readonly updatedAt!: Date;
   // без createdAt/updatedAt
 }
 
@@ -22,8 +24,8 @@ export class Movie extends Model {
 Movie.init(
   {
     id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
       primaryKey: true,
     },
     title: {
@@ -61,9 +63,10 @@ export const MovieModel = {
 
   async getById(id: string) {
     return Movie.findByPk(id, {
-      include: [{ model: Actor, as: 'actors' }],
+      include: [{ model: Actor, as: 'actors', through: { attributes: [] } }],
     });
   },
+
 
   async getAllSorted() {
     return Movie.findAll({
@@ -77,6 +80,12 @@ export const MovieModel = {
       include: [{ model: Actor, as: 'actors' }],
       where: { title: { [Op.like]: `%${title}%` } },
       order: [['title', 'ASC']],
+    });
+  },
+
+  async getByExactTitle(title: string) {
+    return Movie.findOne({
+      where: where(fn('lower', col('title')), fn('lower', title)),
     });
   },
 

@@ -1,11 +1,35 @@
 import { Request, Response, NextFunction } from 'express';
 import movieService from '../services/movies.service';
 
+
 export default {
   async createMovie(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const newMovie = await movieService.createMovie(req.body);
-      res.status(201).json(newMovie);
+      const { title, year, format, actors } = req.body;
+
+      // Перевірка на унікальність
+      const existing = await movieService.getMovieByTitle(title);
+      if (existing) {
+        res.status(200).json({
+          status: 0,
+          error: {
+            fields: {
+              title: 'NOT_UNIQUE',
+            },
+            code: 'MOVIE_EXISTS',
+          },
+        });
+        return;
+      }
+
+      // Створення фільму
+      const newMovie = await movieService.createMovie({ title, year, format, actors });
+
+      res.status(200).json({
+        data: newMovie,
+        status: 1,
+      });
+
     } catch (error) {
       next(error);
     }
@@ -18,7 +42,10 @@ export default {
         res.status(404).json({ error: 'Movie not found' });
         return;
       }
-      res.json(updatedMovie);
+      res.status(200).json({
+        data: updatedMovie,
+        status: 1,
+      });
     } catch (error) {
       next(error);
     }
@@ -26,27 +53,48 @@ export default {
 
   async deleteMovie(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const deleted = await movieService.deleteMovie(req.params.id);
+      const movieId = req.params.id;
+      const deleted = await movieService.deleteMovie(movieId);
+
       if (!deleted) {
-        res.status(404).json({ error: 'Movie not found' });
+        res.status(200).json({
+          status: 0,
+          error: {
+            fields: {
+              id: movieId,
+            },
+            code: 'MOVIE_NOT_FOUND',
+          },
+        });
         return;
       }
-      res.status(200).json({
-        "status": 1
-      });
-      } catch (error) {
-        next(error);
-      }
+
+      res.status(200).json({ status: 1 });
+    } catch (error) {
+      next(error);
+    }
   },
 
   async getMovieById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const movie = await movieService.getMovieById(req.params.id);
+      const movieId = req.params.id;
+      const movie = await movieService.getMovieById(movieId);
       if (!movie) {
-        res.status(404).json({ error: 'Movie not found' });
+        res.status(200).json({
+          status: 0,
+          error: {
+            fields: {
+              id: movieId,
+            },
+            code: 'MOVIE_NOT_FOUND',
+          },
+        });
         return;
       }
-      res.json(movie);
+      res.status(200).json({
+        data: movie,
+        status: 1,
+      });
     } catch (error) {
       next(error);
     }
@@ -93,19 +141,36 @@ export default {
     }
   },
 
-  /*async importMoviesFromFile(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const file = req.file;
-
-      if (!file) {
-        res.status(400).json({ error: 'No file uploaded' });
-        return;
-      }
-
-      const imported = await movieService.importFromTxt(file.buffer.toString('utf-8'));
-      res.status(201).json({ importedCount: imported });
-    } catch (error) {
-      next(error);
+async importMoviesFromFile(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.file) {
+       res.status(400).json({
+        status: 0,
+        error: {
+          fields: { file: "REQUIRED" },
+          code: "NO_FILE"
+        }
+      });
+      return
     }
-  },*/
+
+    const content = req.file.buffer.toString('utf-8');
+    // Передаємо “чистий” текст у сервіс
+    const { imported, total, movies, failed } = await movieService.importFromText(content);
+
+    res.status(200).json({
+      data: movies,
+      meta: {
+        imported,
+        total,
+        failed: failed.length > 0 ? failed : undefined
+      },
+      status: 1
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+
 };

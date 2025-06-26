@@ -1,9 +1,8 @@
 import { Sequelize } from 'sequelize';
-
-const dbPath = process.env.DB_USERS_STORAGE || './database/users.sqlite';
+import { DB_USERS_STORAGE } from "./index"
 
 export const sequelizeUsers = new Sequelize({
   dialect: 'sqlite',
-  storage: dbPath,
+  storage: DB_USERS_STORAGE,
   logging: false, // або true, якщо хочеш логи запитів
 });

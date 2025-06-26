@@ -9,7 +9,7 @@ import { sequelizeUsers } from './config/users.database';
 import { errorHandler } from './middlewares/error.middleware';
 import { notFoundHandler } from './middlewares/notFound.middleware';
 
-import userRoutes from './routes/user.routes';
+import userRoutes from './routes/users.routes';
 import movieRoutes from './routes/movies.routes';
 
 import { associateModels } from './models/associateModels';

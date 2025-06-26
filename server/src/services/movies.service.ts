@@ -1,6 +1,7 @@
-import { CreateMovieDTO, UpdateMovieDTO } from '../types/movie';
+import { CreateMovieDTO, UpdateMovieDTO, SanitizedMovie } from '../types/movie';
 import { MovieModel } from '../models/movie.model';
 import { ActorModel } from '../models/actor.model';
+import { parseMoviesFromText } from '../utils/parseMoviesFromText'
 
 const movieService = {
   async createMovie(data: CreateMovieDTO) {
@@ -52,13 +53,55 @@ const movieService = {
     return MovieModel.searchByTitle(title);
   },
 
+  async getMovieByTitle(title: string) {
+    return MovieModel.getByExactTitle(title);
+  },
+
   async searchByActor(actor: string) {
     return MovieModel.searchByActor(actor);
   },
 
-  /*async importFromTxt(content: string) {
-    return MovieModel.importFromTxt(content);
-  },*/
+  async importFromText(content: string) {
+    const parsedMovies = parseMoviesFromText(content); // повертає масив CreateMovieDTO
+    const createdMovies: SanitizedMovie[] = [];
+
+    const failedTitles: string[] = [];
+
+    for (const dto of parsedMovies) {
+      try {
+        const existing = await MovieModel.getByExactTitle(dto.title);
+        if (existing) {
+          failedTitles.push(dto.title);
+          continue;
+        }
+
+        const movie = await movieService.createMovie(dto);
+        if (!movie) {
+          failedTitles.push(dto.title);
+          continue;
+        }
+
+        const { id, title, year, format, createdAt, updatedAt } = movie;
+        createdMovies.push({
+          id,
+          title,
+          year,
+          format,
+          createdAt,
+          updatedAt,
+        });
+      } catch (err) {
+        failedTitles.push(dto.title);
+      }
+    }
+
+    return {
+      movies: createdMovies,
+      imported: createdMovies.length,
+      total: parsedMovies.length,
+      failed: failedTitles,
+    };
+  }
 };
 
 export default movieService;

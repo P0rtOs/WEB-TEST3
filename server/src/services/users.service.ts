@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import { CreateUserSafeDTO } from '../types/user';
-import { UserModel } from '../models/user.model';
+import { UserModel } from '../models/users.model';
 
 const SALT_ROUNDS = 10;
 

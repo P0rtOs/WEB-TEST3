@@ -7,8 +7,8 @@ export interface Movie {
   year: number;
   format: 'VHS' | 'DVD' | 'Blu-ray';
   actors: Actor[];
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // Для створення фільму — без id, timestamps, але з іменами акторів
@@ -18,3 +18,5 @@ export type CreateMovieDTO = Omit<Movie, 'id' | 'actors' | 'createdAt' | 'update
 
 // Для оновлення — все опціонально
 export type UpdateMovieDTO = Partial<CreateMovieDTO>;
+
+export type SanitizedMovie = Omit<Movie, 'actors'>;

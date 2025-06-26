@@ -1,8 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import userService from '../services/user.service';
+import userService from '../services/users.service';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { JWT_EXPIRES_IN, JWT_SECRET } from "../config/index"
+
 export default {
   async register(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -10,7 +11,7 @@ export default {
 
       const existingUser = await userService.getUserByEmail(email);
       if (existingUser) {
-        res.status(409).json({
+        res.status(200).json({
           status: 0,
           error: {
             fields: {
@@ -31,7 +32,7 @@ export default {
         { expiresIn: JWT_EXPIRES_IN }
       );
 
-      res.status(201).json({ token, status: 1 });
+      res.status(200).json({ token, status: 1 });
     } catch (error) {
       next(error);
     }
@@ -43,7 +44,7 @@ export default {
 
       const user = await userService.getUserByEmail(email);
       if (!user) {
-        res.status(401).json({
+        res.status(200).json({
           status: 0,
           error: {
             fields: {
@@ -58,7 +59,7 @@ export default {
 
       const passwordValid = await bcrypt.compare(password, user.passwordHash);
       if (!passwordValid) {
-        res.status(401).json({
+        res.status(200).json({
           status: 0,
           error: {
             fields: {
@@ -74,7 +75,7 @@ export default {
       const token = jwt.sign(
         { userId: user.id, email: user.email },
         JWT_SECRET,
-        { expiresIn: JWT_EXPIRES_IN  }          //Тестово 100 годин, щоб не мучатись :)
+        { expiresIn: JWT_EXPIRES_IN  }
       );
 
       res.json({ token, status: 1 });
