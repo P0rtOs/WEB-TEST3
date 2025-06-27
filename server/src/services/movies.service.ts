@@ -5,30 +5,35 @@ import { parseMoviesFromText } from '../utils/parseMoviesFromText'
 
 const movieService = {
   async createMovie(data: CreateMovieDTO) {
+    // 1. Створюємо сам фільм
     const movie = await MovieModel.create({
       title: data.title,
       year: data.year,
       format: data.format,
     });
 
-    // Тут створяться актори яких ще немає в бд
+    // 2. Розв’язуємо акторів: шукаємо + створюємо відсутніх
     const actors = await ActorModel.resolveActors(data.actors);
 
+    // 3. Прив’язуємо акторів до фільму
     await MovieModel.addActors(movie, actors);
 
+    // 4. Повертаємо фільм із заповненими акторами
     return MovieModel.getById(movie.id);
   },
 
   async updateMovie(id: number, data: UpdateMovieDTO) {
+    // 1. Оновлюємо поля фільму (назва, рік, формат)
     const updated = await MovieModel.update(id, data);
     if (!updated) return null;
 
-    //Тут створяться актори яких ще немає в бд
+    // 2. Якщо є новий список actors — робимо ту ж саму логіку
     if (data.actors) {
       const actors = await ActorModel.resolveActors(data.actors);
       await MovieModel.setActors(updated, actors);
     }
 
+    // 3. Повертаємо оновлений фільм із акторами
     return MovieModel.getById(id);
   },
 
@@ -53,44 +58,47 @@ const movieService = {
   },
 
   async searchMovies(query: any): Promise<Movie[]> {
-    const {
-      title,
-      search,
-      sort = 'id',
-      order = 'ASC',
-      limit = '20',
-      offset = '0',
-    } = query;
+  const {
+    title,
+    search,
+    actor,
+    sort = 'id',
+    order = 'ASC',
+    limit = '20',
+    offset = '0',
+  } = query;
 
-    // Приведення типів
-    const parsedLimit = parseInt(limit, 10);
-    const parsedOffset = parseInt(offset, 10);
-    const parsedOrder = (order as string).toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+  // Приведення типів та дефолтів
+  const parsedLimit = parseInt(limit, 10);
+  const parsedOffset = parseInt(offset, 10);
+  const parsedOrder = (order as string).toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
 
-    // Поверне масив з відсортованими фільмами які ми шукаємо 
-    const movies = await MovieModel.searchWithFilters({
-      title: title || undefined,
-      actor: search || undefined,
-      sort: sort || 'id',
-      order: parsedOrder || 'DESC',
-      limit: isNaN(parsedLimit) ? 20 : parsedLimit,
-      offset: isNaN(parsedOffset) ? 0 : parsedOffset,
-    });
-    return movies.map(movie => ({
-      id: movie.id,
-      title: movie.title,
-      year: movie.year,
-      format: movie.format,
-      createdAt: movie.createdAt,
-      updatedAt: movie.updatedAt,
-    }));
+  // Вибір відповідної логіки моделі
+  const movies = await MovieModel.searchWithFilters({
+  title: title || undefined,
+  actor: actor || undefined, // ОКРЕМО, не замість title
+  search: search || undefined, // Додатковий пошук
+  sort: sort || 'id',
+  order: parsedOrder,
+  limit: isNaN(parsedLimit) ? 20 : parsedLimit,
+  offset: isNaN(parsedOffset) ? 0 : parsedOffset,
+});
+
+return movies.map(movie => ({
+  id: movie.id,
+  title: movie.title,
+  year: movie.year,
+  format: movie.format,
+  createdAt: movie.createdAt,
+  updatedAt: movie.updatedAt,
+}));
   },
 
   async searchByActor(actor: string) {
     return MovieModel.searchByActor(actor);
   },
 
-async importFromText(content: string) {
+  async importFromText(content: string) {
   const parsedMovies = parseMoviesFromText(content); // CreateMovieDTO[]
   const createdMovies: SanitizedMovie[] = [];
   const failedTitles: string[] = [];
@@ -120,10 +128,11 @@ async importFromText(content: string) {
     movies: createdMovies,
     imported: createdMovies.length,
     total: parsedMovies.length,
-    failed: failedTitles.length,
+    failed: failedTitles.length ? failedTitles : undefined,
   };
 }
 
-};
+
+}
 
 export default movieService;

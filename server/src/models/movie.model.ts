@@ -101,38 +101,52 @@ export const MovieModel = {
   async searchWithFilters(options: {
     title?: string;
     actor?: string;
+    search?: string;
     sort: string;
     order: 'ASC' | 'DESC';
     limit: number;
     offset: number;
   }) {
-    const { title, actor, sort, order, limit, offset } = options;
+    const { title, actor, search, sort, order, limit, offset } = options;
 
     const where: any = {};
-    if (title) {
-      where.title = { [Op.like]: `%${title}%` };
-    }
-
-    const include = [{
+    const include: any[] = [{
       model: Actor,
       as: 'actors',
       through: { attributes: [] },
-      ...(actor ? {
-        where: {
-          name: { [Op.like]: `%${actor}%` }
-        }
-      } : {})
     }];
 
+    if (search) {
+      // Якщо є search — ігноруємо title та actor, шукаємо або по title або по actor.name
+      where[Op.or] = [
+        { title: { [Op.like]: `%${search}%` } },
+        sequelizeMovies.literal(`EXISTS (
+        SELECT 1 FROM MovieActors AS ma
+        JOIN Actors AS a ON a.id = ma.actorId
+        WHERE ma.movieId = "Movie"."id" AND a.name LIKE '%${search}%'
+      )`)
+      ];
+    } else {
+      // Якщо немає search — обробляємо title + actor як AND
+      if (title) {
+        where.title = { [Op.like]: `%${title}%` };
+      }
+
+      if (actor) {
+        include[0].where = { name: { [Op.like]: `%${actor}%` } };
+      }
+    }
 
     return Movie.findAll({
       where,
       include,
       order: [[sort, order]],
       limit,
-      offset
-    });
+      offset,
+      distinct: true,
+    } as any);
   },
+
 
   async addActors(movie: Movie, actors: Actor[]) {
     return movie.addActors(actors);
@@ -141,4 +155,16 @@ export const MovieModel = {
   async setActors(movie: Movie, actors: Actor[]) {
     return movie.setActors(actors);
   },
+  async getExistingTitles(titles: string[]): Promise<Set<string>> {
+    const existingMovies = await Movie.findAll({
+      where: {
+        title: {
+          [Op.in]: titles
+        }
+      },
+      attributes: ['title']
+    });
+
+    return new Set(existingMovies.map(movie => movie.title));
+  }
 };
