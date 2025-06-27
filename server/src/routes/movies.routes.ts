@@ -10,14 +10,11 @@ const router = Router();
 
 router.use(authenticateToken);
 
-router.get('/', controller.getAllMovies);
+//router.get('/', controller.getAllMovies);
 router.get('/:id', controller.getMovieById);
 
-router.get('/search', (req, res, next) => {
-  if (req.query.title) return controller.searchMoviesByTitle(req, res, next);
-  if (req.query.actor) return controller.searchMoviesByActor(req, res, next);
-  res.status(400).json({ message: 'Missing query parameter' });
-});
+router.get('/', controller.searchMovies);
+
 
 router.post('/', validateCreateMovie, controller.createMovie);
 router.patch('/:id', validateUpdateMovie, controller.updateMovie);

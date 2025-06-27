@@ -1,4 +1,4 @@
-import { CreateMovieDTO, UpdateMovieDTO, SanitizedMovie } from '../types/movie';
+import { Movie, CreateMovieDTO, UpdateMovieDTO, SanitizedMovie } from '../types/movie';
 import { MovieModel } from '../models/movie.model';
 import { ActorModel } from '../models/actor.model';
 import { parseMoviesFromText } from '../utils/parseMoviesFromText'
@@ -22,7 +22,7 @@ const movieService = {
     return MovieModel.getById(movie.id);
   },
 
-  async updateMovie(id: string, data: UpdateMovieDTO) {
+  async updateMovie(id: number, data: UpdateMovieDTO) {
     // 1. Оновлюємо поля фільму (назва, рік, формат)
     const updated = await MovieModel.update(id, data);
     if (!updated) return null;
@@ -37,11 +37,11 @@ const movieService = {
     return MovieModel.getById(id);
   },
 
-  async deleteMovie(id: string) {
+  async deleteMovie(id: number) {
     return MovieModel.delete(id);
   },
 
-  async getMovieById(id: string) {
+  async getMovieById(id: number) {
     return MovieModel.getById(id);
   },
 
@@ -56,6 +56,40 @@ const movieService = {
   async getMovieByTitle(title: string) {
     return MovieModel.getByExactTitle(title);
   },
+
+  async searchMovies(query: any): Promise<Movie[]> {
+  const {
+    title,
+    search,
+    sort = 'id',
+    order = 'ASC',
+    limit = '20',
+    offset = '0',
+  } = query;
+
+  // Приведення типів та дефолтів
+  const parsedLimit = parseInt(limit, 10);
+  const parsedOffset = parseInt(offset, 10);
+  const parsedOrder = (order as string).toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+
+  // Вибір відповідної логіки моделі
+  const movies = await MovieModel.searchWithFilters({
+    title: title || undefined,
+    actor: search || undefined,
+    sort: sort || 'id',
+    order: parsedOrder || 'DESC',
+    limit: isNaN(parsedLimit) ? 20 : parsedLimit,
+    offset: isNaN(parsedOffset) ? 0 : parsedOffset,
+  });
+      return movies.map(movie => ({
+        id: movie.id,
+        title: movie.title,
+        year: movie.year,
+        format: movie.format,
+        createdAt: movie.createdAt,
+        updatedAt: movie.updatedAt,
+      }));
+},
 
   async searchByActor(actor: string) {
     return MovieModel.searchByActor(actor);

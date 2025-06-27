@@ -2,7 +2,7 @@ import { DataTypes, Model } from 'sequelize';
 import { sequelizeUsers } from '../config/users.database';
 
 export class User extends Model {
-  public id!: string; // UUID
+  public id!: number;
   public email!: string;
   public passwordHash!: string;
 
@@ -13,8 +13,8 @@ export class User extends Model {
 User.init(
   {
     id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
       primaryKey: true,
     },
     email: {
@@ -50,17 +50,17 @@ export const UserModel = {
     return User.findOne({ where: { email } });
   },
 
-  async getById(id: string) {
+  async getById(id: number) {
     return User.findByPk(id);
   },
 
-  async update(id: string, data: Partial<{ email: string; passwordHash: string }>) {
+  async update(id: number, data: Partial<{ email: string; passwordHash: string }>) {
     const [updatedCount] = await User.update(data, { where: { id } });
     if (updatedCount === 0) return null;
     return this.getById(id);
   },
 
-  async delete(id: string) {
+  async delete(id: number) {
     const deletedCount = await User.destroy({ where: { id } });
     return deletedCount > 0;
   },

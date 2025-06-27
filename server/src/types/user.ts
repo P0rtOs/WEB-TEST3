@@ -1,6 +1,6 @@
 // Як User зберігається в БД
 export interface User {
-  id: string;              // UUID
+  id: number;
   email: string;
   name: string;
   passwordHash: string;
@@ -8,7 +8,7 @@ export interface User {
   updatedAt: Date;
 }
 
-// DTO для запиту реєстрації (з confirmPassword)
+// DTO для запиту реєстрації
 export interface CreateUserDTO {
   email: string;
   name: string;
@@ -16,10 +16,10 @@ export interface CreateUserDTO {
   confirmPassword: string;
 }
 
-// DTO для збереження користувача в БД (без confirmPassword) - ?????????????
+// DTO для збереження користувача в БД (без confirmPassword)
 export type CreateUserSafeDTO = Omit<CreateUserDTO, 'confirmPassword'>;
 
-// DTO для відповіді (без passwordHash) - ?????????????????
+// DTO для відповіді (без passwordHash)
 export type UserResponse = Omit<User, 'passwordHash'>;
 
 // DTO для оновлення користувача (усі поля необов’язкові)

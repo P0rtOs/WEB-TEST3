@@ -2,11 +2,11 @@ import { Actor } from './actor';
 
 // Основний тип Movie — як він зберігається у БД
 export interface Movie {
-  id: string; // UUID
+  id: number;
   title: string;
   year: number;
   format: 'VHS' | 'DVD' | 'Blu-ray';
-  actors: Actor[];
+  actors?: Actor[]; //акторів може й не бути? напевне
   createdAt: Date;
   updatedAt: Date;
 }

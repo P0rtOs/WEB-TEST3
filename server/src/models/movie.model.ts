@@ -5,7 +5,7 @@ import { Actor } from './actor.model';
 
 // Sequelize Movie model
 export class Movie extends Model {
-  public id!: string;
+  public id!: number;
   public title!: string;
   public year!: number;
   public format!: 'VHS' | 'DVD' | 'Blu-ray';
@@ -14,7 +14,7 @@ export class Movie extends Model {
   public setActors!: BelongsToManySetAssociationsMixin<Actor, number>;
 
   public actors?: Actor[]; // асоційовані актори (через .include)
-  
+
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
   // без createdAt/updatedAt
@@ -56,12 +56,12 @@ export const MovieModel = {
     return Movie.create(data);
   },
 
-  async delete(id: string) {
+  async delete(id: number) {
     const deleted = await Movie.destroy({ where: { id } });
     return deleted > 0;
   },
 
-  async getById(id: string) {
+  async getById(id: number) {
     return Movie.findByPk(id, {
       include: [{ model: Actor, as: 'actors', through: { attributes: [] } }],
     });
@@ -100,9 +100,45 @@ export const MovieModel = {
     });
   },
 
-  async update(id: string, data: Partial<{ title: string; year: number; format: string }>) {
+  async update(id: number, data: Partial<{ title: string; year: number; format: string }>) {
     const [updated] = await Movie.update(data, { where: { id } });
     return updated ? this.getById(id) : null;
+  },
+
+  async searchWithFilters(options: {
+    title?: string;
+    actor?: string;
+    sort: string;
+    order: 'ASC' | 'DESC';
+    limit: number;
+    offset: number;
+  }) {
+    const { title, actor, sort, order, limit, offset } = options;
+
+    const where: any = {};
+    if (title) {
+      where.title = { [Op.like]: `%${title}%` };
+    }
+
+    const include = [{
+  model: Actor,
+  as: 'actors', // обов’язково!
+  through: { attributes: [] },
+  ...(actor ? {
+    where: {
+      name: { [Op.like]: `%${actor}%` }
+    }
+  } : {})
+}];
+
+
+    return Movie.findAll({
+      where,
+      include,
+      order: [[sort, order]],
+      limit,
+      offset
+    });
   },
 
   async addActors(movie: Movie, actors: Actor[]) {
@@ -112,16 +148,4 @@ export const MovieModel = {
   async setActors(movie: Movie, actors: Actor[]) {
     return movie.setActors(actors);
   },
-
-  /*async importFromTxt(content: string) {
-    const movies = parseMoviesFromTxt(content);
-    let count = 0;
-    for (const m of movies) {
-      const movie = await this.create({ title: m.title, year: m.year, format: m.format });
-      const actors = await ActorModel.resolveActors(m.actors);
-      await movie.addActors(actors);
-      count++;
-    }
-    return count;
-  },*/
 };

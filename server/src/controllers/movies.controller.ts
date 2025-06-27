@@ -37,9 +37,18 @@ export default {
 
   async updateMovie(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const updatedMovie = await movieService.updateMovie(req.params.id, req.body);
+      const updatedMovie = await movieService.updateMovie(Number(req.params.id), req.body);
       if (!updatedMovie) {
-        res.status(404).json({ error: 'Movie not found' });
+        res.status(200).json(
+          {
+            "status": 0,
+            "error": {
+              "fields": {
+                "id": req.params.id
+              },
+              "code": "MOVIE_NOT_FOUND"
+            }
+          });
         return;
       }
       res.status(200).json({
@@ -53,16 +62,15 @@ export default {
 
   async deleteMovie(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const movieId = req.params.id;
-      const deleted = await movieService.deleteMovie(movieId);
+      const deleted = await movieService.deleteMovie(Number(req.params.id));
 
       if (!deleted) {
         res.status(200).json({
           status: 0,
           error: {
             fields: {
-              id: movieId,
-            },
+              id: req.params.id,
+            },  
             code: 'MOVIE_NOT_FOUND',
           },
         });
@@ -77,14 +85,13 @@ export default {
 
   async getMovieById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const movieId = req.params.id;
-      const movie = await movieService.getMovieById(movieId);
+      const movie = await movieService.getMovieById(Number(req.params.id));
       if (!movie) {
         res.status(200).json({
           status: 0,
           error: {
             fields: {
-              id: movieId,
+              id: req.params.id,
             },
             code: 'MOVIE_NOT_FOUND',
           },
@@ -111,11 +118,18 @@ export default {
 
   async searchMoviesByTitle(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const title = String(req.query.title);
-      const movies = await movieService.searchByTitle(title);
+      const movies = await movieService.searchByTitle(String(req.query.title));
 
       if (!movies.length) {
-        res.status(404).json({ error: 'No movies found with this title' });
+        res.status(200).json({
+          status: 0,
+          error: {
+            fields: {
+              title: req.query.title,
+            },
+            code: 'MOVIE_NOT_FOUND',
+          },
+        });
         return;
       }
 
@@ -127,11 +141,18 @@ export default {
 
   async searchMoviesByActor(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const actor = String(req.query.actor);
-      const movies = await movieService.searchByActor(actor);
+      const movies = await movieService.searchByActor(String(req.query.actor));
 
       if (!movies.length) {
-        res.status(404).json({ error: 'No movies found with this actor' });
+        res.status(200).json({
+          status: 0,
+          error: {
+            fields: {
+              actor: req.query.actor,
+            },
+            code: 'ACTOR_NOT_FOUND',
+          },
+        });
         return;
       }
 
@@ -141,36 +162,55 @@ export default {
     }
   },
 
-async importMoviesFromFile(req: Request, res: Response, next: NextFunction) {
-  try {
-    if (!req.file) {
-       res.status(400).json({
-        status: 0,
-        error: {
-          fields: { file: "REQUIRED" },
-          code: "NO_FILE"
-        }
+  async searchMovies(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const options = req.query; // Передаємо усі query як є, тип можна кастити у any чи відповідний тип
+
+      const movies = await movieService.searchMovies(options as any);
+
+      res.status(200).json({
+        data: movies,
+        meta: {
+          total: movies.length,
+        },
+        status: 1
       });
-      return
+    } catch (err) {
+      next(err);
     }
+  },
 
-    const content = req.file.buffer.toString('utf-8');
-    // Передаємо “чистий” текст у сервіс
-    const { imported, total, movies, failed } = await movieService.importFromText(content);
 
-    res.status(200).json({
-      data: movies,
-      meta: {
-        imported,
-        total,
-        failed: failed.length > 0 ? failed : undefined
-      },
-      status: 1
-    });
-  } catch (err) {
-    next(err);
+  async importMoviesFromFile(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.file) {
+        res.status(400).json({
+          status: 0,
+          error: {
+            fields: { file: "REQUIRED" },
+            code: "NO_FILE"
+          }
+        });
+        return
+      }
+
+      const content = req.file.buffer.toString('utf-8');
+      // Передаємо “чистий” текст у сервіс
+      const { imported, total, movies, failed } = await movieService.importFromText(content);
+
+      res.status(200).json({
+        data: movies,
+        meta: {
+          imported,
+          total,
+          failed: failed.length > 0 ? failed : undefined
+        },
+        status: 1
+      });
+    } catch (err) {
+      next(err);
+    }
   }
-}
 
 
 };
