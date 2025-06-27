@@ -7,7 +7,6 @@ export default {
     try {
       const { title, year, format, actors } = req.body;
 
-      // Перевірка на унікальність
       const existing = await movieService.getMovieByTitle(title);
       if (existing) {
         res.status(200).json({
@@ -164,7 +163,7 @@ export default {
 
   async searchMovies(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const options = req.query; // Передаємо усі query як є, тип можна кастити у any чи відповідний тип
+      const options = req.query; // Передаємо усі query, тому прийдеться скористатись any
 
       const movies = await movieService.searchMovies(options as any);
 
@@ -184,7 +183,7 @@ export default {
   async importMoviesFromFile(req: Request, res: Response, next: NextFunction) {
     try {
       if (!req.file) {
-        res.status(400).json({
+        res.status(200).json({
           status: 0,
           error: {
             fields: { file: "REQUIRED" },
@@ -195,7 +194,7 @@ export default {
       }
 
       const content = req.file.buffer.toString('utf-8');
-      // Передаємо “чистий” текст у сервіс
+
       const { imported, total, movies, failed } = await movieService.importFromText(content);
 
       res.status(200).json({
@@ -203,7 +202,7 @@ export default {
         meta: {
           imported,
           total,
-          failed: failed.length > 0 ? failed : undefined
+          failed: failed
         },
         status: 1
       });

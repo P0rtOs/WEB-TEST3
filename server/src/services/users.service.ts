@@ -19,7 +19,8 @@ const userService = {
     return UserModel.findByEmail(email);
   },
 
-  // додаткові методи можна додати за потребою, наприклад оновлення, видалення
+  // Тут будуть інші CRUD операції: наприклад оновлення, видалення
+  // Але по ТЗ цього немає
 };
 
 export default userService;

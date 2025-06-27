@@ -38,9 +38,6 @@ User.init(
   }
 );
 
-// При бажанні можна додати методи для моделі тут
-// Наприклад, для пошуку користувача за email
-
 export const UserModel = {
   async create(data: { email: string; name: string; passwordHash: string }) {
     return User.create(data);

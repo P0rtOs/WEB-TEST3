@@ -1,7 +1,6 @@
 import { DataTypes, Model } from 'sequelize';
 import { sequelizeMovies } from '../config/movies.database';
 
-// Основна модель
 export class Actor extends Model {
   public id!: number;
   public name!: string;
@@ -9,7 +8,6 @@ export class Actor extends Model {
   public readonly updatedAt!: Date;
 }
 
-// Ініціалізація
 Actor.init(
   {
     id: {
@@ -20,19 +18,18 @@ Actor.init(
     name: {
       type: DataTypes.STRING,
       allowNull: false,
-      unique: true, // важливо: ім’я актора має бути унікальне
+      unique: true,
     },
   },
   {
     sequelize: sequelizeMovies,
     modelName: 'Actor',
     tableName: 'actors',
-    timestamps: true, // потрібні для завдання
+    timestamps: true,
   }
 );
 
 
-// Обгортка ActorModel з утилітами
 export const ActorModel = {
   /**
    * Приймає список імен акторів і повертає об'єкти Actor

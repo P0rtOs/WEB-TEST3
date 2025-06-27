@@ -1,8 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import userService from '../services/users.service';
-import jwt from 'jsonwebtoken';
+import { generateToken } from '../utils/TokenFunctions';
 import bcrypt from 'bcrypt';
-import { JWT_EXPIRES_IN, JWT_SECRET } from "../config/index"
 
 export default {
   async register(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -16,7 +15,7 @@ export default {
           error: {
             fields: {
               email: 'NOT_UNIQUE',
-            },  
+            },
             code: 'EMAIL_NOT_UNIQUE',
           },
         });
@@ -25,14 +24,9 @@ export default {
 
       const user = await userService.createUser({ email, name, password });
 
-      // 🔐 Генеруємо токен після успішної реєстрації
-      const token = jwt.sign(
-        { userId: user.id, email: user.email },
-        JWT_SECRET,
-        { expiresIn: JWT_EXPIRES_IN }
-      );
+      const token = generateToken({ userId: user.id, email: user.email });
 
-      res.status(200).json({ token, status: 1 });
+      res.status(200).json({ token: token, status: 1 });
     } catch (error) {
       next(error);
     }
@@ -43,48 +37,30 @@ export default {
       const { email, password } = req.body;
 
       const user = await userService.getUserByEmail(email);
-      if (!user) {
-        res.status(200).json({
-          status: 0,
-          error: {
-            fields: {
-              email: 'AUTHENTICATION_FAILED',
-              password: 'AUTHENTICATION_FAILED',
-            },
-            code: 'AUTHENTICATION_FAILED',
-          },
-        });
-        return;
+
+      if (user) {
+        const passwordValid = await bcrypt.compare(password, user.passwordHash);
+        if (passwordValid) {
+          const token = generateToken({ userId: user.id, email: user.email });
+          res.json({ token: token, status: 1 });
+          return;
+        }
       }
 
-      const passwordValid = await bcrypt.compare(password, user.passwordHash);
-      if (!passwordValid) {
-        res.status(200).json({
-          status: 0,
-          error: {
-            fields: {
-              email: 'AUTHENTICATION_FAILED',
-              password: 'AUTHENTICATION_FAILED',
-            },
-            code: 'AUTHENTICATION_FAILED',
+      res.status(200).json({
+        status: 0,
+        error: {
+          fields: {
+            email: 'AUTHENTICATION_FAILED',
+            password: 'AUTHENTICATION_FAILED',
           },
-        });
-        return;
-      }
+          code: 'AUTHENTICATION_FAILED',
+        },
+      });
+      return;
 
-      const token = jwt.sign(
-        { userId: user.id, email: user.email },
-        JWT_SECRET,
-        { expiresIn: JWT_EXPIRES_IN  }
-      );
-
-      res.json({ token, status: 1 });
     } catch (error) {
       next(error);
     }
   },
 };
-
-
-
-

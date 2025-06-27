@@ -1,8 +1,9 @@
-import { CreateMovieDTO } from '../types/movie';  // або твій шлях
+import { CreateMovieDTO } from '../types/movie';
 
 export function parseMoviesFromText(text: string): CreateMovieDTO[] {
   const blocks = text.split(/\n\s*\n/); // поділ по пустих рядках
   const movies: CreateMovieDTO[] = [];
+  const seenTitles = new Set<string>(); // для перевірки дублів, бо потім пропустимо валідацію
 
   for (const block of blocks) {
     const lines = block.split('\n');
@@ -28,7 +29,15 @@ export function parseMoviesFromText(text: string): CreateMovieDTO[] {
       }
     }
 
-    if (movie.title && movie.year && movie.format && movie.actors) {
+    // Перевірка, чи повні дані і тайтл не дублюється
+    if (
+      movie.title &&
+      movie.year &&
+      movie.format &&
+      movie.actors &&
+      !seenTitles.has(movie.title)
+    ) {
+      seenTitles.add(movie.title);
       movies.push(movie as CreateMovieDTO);
     }
   }

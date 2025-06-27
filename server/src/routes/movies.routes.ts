@@ -5,12 +5,11 @@ import { validateCreateMovie, validateUpdateMovie } from '../validation/movie.va
 import { authenticateToken } from '../validation/token.validation';
 import multer from 'multer';
 
-const upload = multer(); // для multipart/form-data
+const upload = multer();
 const router = Router();
 
 router.use(authenticateToken);
 
-//router.get('/', controller.getAllMovies);
 router.get('/:id', controller.getMovieById);
 
 router.get('/', controller.searchMovies);

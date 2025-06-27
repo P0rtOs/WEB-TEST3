@@ -1,4 +1,4 @@
-export interface MovieSearchOptions {
+export interface MovieSearchOptions { // Якщо змінювати пошук за опціями - починати тут
   title?: string;
   actor?: string;
   sort?: string;          

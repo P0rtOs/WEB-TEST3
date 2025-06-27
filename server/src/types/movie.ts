@@ -13,7 +13,7 @@ export interface Movie {
 
 // Для створення фільму — без id, timestamps, але з іменами акторів
 export type CreateMovieDTO = Omit<Movie, 'id' | 'actors' | 'createdAt' | 'updatedAt'> & {
-  actors: string[]; // при створенні актори — імена
+  actors: string[]; // при створенні актори — імена, інші поля автоматичні
 };
 
 // Для оновлення — все опціонально

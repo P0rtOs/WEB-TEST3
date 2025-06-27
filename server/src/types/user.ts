@@ -16,11 +16,11 @@ export interface CreateUserDTO {
   confirmPassword: string;
 }
 
-// DTO для збереження користувача в БД (без confirmPassword)
+// DTO для збереження користувача в БД
 export type CreateUserSafeDTO = Omit<CreateUserDTO, 'confirmPassword'>;
 
-// DTO для відповіді (без passwordHash)
+// DTO для відповіді
 export type UserResponse = Omit<User, 'passwordHash'>;
 
-// DTO для оновлення користувача (усі поля необов’язкові)
+// DTO для оновлення (всі поля необов’язкові)
 export type UpdateUserDTO = Partial<CreateUserDTO>;

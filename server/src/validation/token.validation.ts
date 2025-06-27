@@ -1,10 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import { JWT_SECRET } from "../config/index"
+import { verifyToken } from '../utils/TokenFunctions';
+import userService from '../services/users.service';
 
-export function authenticateToken(req: Request, res: Response, next: NextFunction): void {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader ? authHeader.toString() : null;  // беремо весь заголовок як токен
+export async function authenticateToken(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const token = req.headers['authorization']?.toString() || null;
 
   if (!token) {
     res.status(200).json({
@@ -16,12 +15,27 @@ export function authenticateToken(req: Request, res: Response, next: NextFunctio
         code: "FORMAT_ERROR"
       }
     });
-    return
+    return;
   }
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-        res.status(200).json({
+  const decoded = verifyToken(token);
+  if (!decoded) {
+    res.status(200).json({
+      status: 0,
+      error: {
+        fields: {
+          token: "INVALID"
+        },
+        code: "INVALID_TOKEN"
+      }
+    });
+    return;
+  }
+
+  try {
+    const existingUser = await userService.getUserByEmail(decoded.email);
+    if (!existingUser) {
+      res.status(200).json({
         status: 0,
         error: {
           fields: {
@@ -30,11 +44,22 @@ export function authenticateToken(req: Request, res: Response, next: NextFunctio
           code: "INVALID_TOKEN"
         }
       });
-      return
+      return;
     }
-    // Передавання даних про юзера далі — наразі не потрібно
-    // req.user = user;
+
+    // Можна додати user у req для подальшого використання
+    // req.user = existingUser;
 
     next();
-  });
+  } catch (err) {
+    res.status(200).json({
+      status: 0,
+      error: {
+        fields: {
+          token: "INVALID"
+        },
+        code: "INVALID_TOKEN"
+      }
+    });
+  }
 }

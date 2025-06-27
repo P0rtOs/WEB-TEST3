@@ -1,4 +1,4 @@
-// associateModels.ts
+// Потрібно для пов'язання таблиць/моделей
 import { Actor } from './actor.model';
 import { Movie } from './movie.model';
 

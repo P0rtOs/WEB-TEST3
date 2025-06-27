@@ -1,9 +1,7 @@
 import { DataTypes, Model, Op, BelongsToManyAddAssociationsMixin, BelongsToManySetAssociationsMixin, fn, col, where } from 'sequelize';
 import { sequelizeMovies } from '../config/movies.database';
 import { Actor } from './actor.model';
-//import parseMoviesFromTxt from '../utils/fileParser';
 
-// Sequelize Movie model
 export class Movie extends Model {
   public id!: number;
   public title!: string;
@@ -13,14 +11,12 @@ export class Movie extends Model {
   public addActors!: BelongsToManyAddAssociationsMixin<Actor, number>;
   public setActors!: BelongsToManySetAssociationsMixin<Actor, number>;
 
-  public actors?: Actor[]; // асоційовані актори (через .include)
+  public actors?: Actor[];
 
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
-  // без createdAt/updatedAt
 }
 
-// Ініціалізація таблиці
 Movie.init(
   {
     id: {
@@ -49,8 +45,6 @@ Movie.init(
   }
 );
 
-
-// Методи для Movie через обгортку
 export const MovieModel = {
   async create(data: { title: string; year: number; format: string }) {
     return Movie.create(data);
@@ -66,7 +60,6 @@ export const MovieModel = {
       include: [{ model: Actor, as: 'actors', through: { attributes: [] } }],
     });
   },
-
 
   async getAllSorted() {
     return Movie.findAll({
@@ -121,15 +114,15 @@ export const MovieModel = {
     }
 
     const include = [{
-  model: Actor,
-  as: 'actors', // обов’язково!
-  through: { attributes: [] },
-  ...(actor ? {
-    where: {
-      name: { [Op.like]: `%${actor}%` }
-    }
-  } : {})
-}];
+      model: Actor,
+      as: 'actors',
+      through: { attributes: [] },
+      ...(actor ? {
+        where: {
+          name: { [Op.like]: `%${actor}%` }
+        }
+      } : {})
+    }];
 
 
     return Movie.findAll({

@@ -1,5 +1,4 @@
 import express from 'express';
-//import cors from 'cors';
 import { APP_PORT } from './config';
 import { sequelizeMovies } from './config/movies.database';
 import { sequelizeUsers } from './config/users.database';
@@ -19,16 +18,11 @@ import { associateModels } from './models/associateModels';
 const app = express();
 
 
-/*app.use(cors({
-  origin: ['http://127.0.0.1:1234', 'http://localhost:1234'],
-}));*/
 app.use(express.json());
 
-// Routes
 app.use('/api/v1', userRoutes);
 app.use('/api/v1/movies', movieRoutes);
 
-// 404 & Error handler
 app.use(notFoundHandler);
 app.use(errorHandler);
 
