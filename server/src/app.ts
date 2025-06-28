@@ -4,6 +4,7 @@ import { sequelizeMovies } from './config/movies.database';
 import { sequelizeUsers } from './config/users.database';
 import { errorHandler } from './middlewares/error.middleware';
 import { notFoundHandler } from './middlewares/notFound.middleware';
+import { expressLogger } from './utils/logger';
 
 import userRoutes from './routes/users.routes';
 import movieRoutes from './routes/movies.routes';
@@ -16,8 +17,10 @@ import { associateModels } from './models/associateModels';
 })();
 
 const app = express();
-
-
+app.use((req, res, next) => {
+  expressLogger.info(`${req.method} ${req.originalUrl}`);
+  next();
+});
 app.use(express.json());
 
 app.use('/api/v1', userRoutes);
