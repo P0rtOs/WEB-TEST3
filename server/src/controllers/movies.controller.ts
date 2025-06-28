@@ -69,7 +69,7 @@ export default {
           error: {
             fields: {
               id: req.params.id,
-            },  
+            },
             code: 'MOVIE_NOT_FOUND',
           },
         });

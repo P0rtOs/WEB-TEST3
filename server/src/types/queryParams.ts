@@ -2,8 +2,8 @@ export interface MovieSearchOptions { // Якщо змінювати пошук 
   title?: string;
   actor?: string;
   search?: string;
-  sort?: string;          
-  order?: 'ASC' | 'DESC'; 
-  limit?: number;        
-  offset?: number;        
+  sort?: string;
+  order?: 'ASC' | 'DESC';
+  limit?: number;
+  offset?: number;
 }

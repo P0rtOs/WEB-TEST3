@@ -118,6 +118,7 @@ export const MovieModel = {
 
     if (search) {
       // Якщо є search — ігноруємо title та actor, шукаємо або по title або по actor.name
+      // Використав literal, бо не виходило зробити через ORM
       where[Op.or] = [
         { title: { [Op.like]: `%${search}%` } },
         sequelizeMovies.literal(`EXISTS (
