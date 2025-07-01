@@ -7,8 +7,8 @@ export default {
     try {
       const { title, year, format, actors } = req.body;
 
-      const existing = await movieService.getMovieByTitle(title);
-      if (existing) {
+      const isDuplicate = await movieService.isExactMovieDuplicate(title, year, format, actors);
+      if (isDuplicate) {
         res.status(200).json({
           status: 0,
           error: {
@@ -33,6 +33,7 @@ export default {
       next(error);
     }
   },
+
 
   async updateMovie(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {

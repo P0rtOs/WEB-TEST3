@@ -67,7 +67,7 @@ export const MovieModel = {
       order: [['title', 'ASC']],
     });
   },
-
+  // Тепер тут пошук всіх фільмів за тайтлом для перевірки на дублікати в сервісі
   async searchByTitle(title: string) {
     return Movie.findAll({
       include: [{ model: Actor, as: 'actors' }],
@@ -76,11 +76,19 @@ export const MovieModel = {
     });
   },
 
-  async getByExactTitle(title: string) {
-    return Movie.findOne({
+  async getAllByExactTitle(title: string) {
+    return Movie.findAll({
       where: where(fn('lower', col('title')), fn('lower', title)),
+      include: [{
+        model: Actor,
+        as: 'actors', // 🔥 ось тут головне!
+        through: { attributes: [] }
+      }]
     });
   },
+
+
+
 
   async searchByActor(actorName: string) {
     return Movie.findAll({
@@ -102,23 +110,24 @@ export const MovieModel = {
     title?: string;
     actor?: string;
     search?: string;
-    sort: string;
-    order: 'ASC' | 'DESC';
     limit: number;
     offset: number;
   }) {
-    const { title, actor, search, sort, order, limit, offset } = options;
+    const { title, actor, search, limit, offset } = options;
 
+    // Умова пошуку по таблиці Movie
     const where: any = {};
+
+    // Включення зв’язаної таблиці Actor через зв’язок many-to-many
     const include: any[] = [{
       model: Actor,
       as: 'actors',
-      through: { attributes: [] },
+      through: { attributes: [] }, // не включати дані з проміжної таблиці MovieActors
     }];
 
+    // Якщо задано загальний search-запит
     if (search) {
-      // Якщо є search — ігноруємо title та actor, шукаємо або по title або по actor.name
-      // Використав literal, бо не виходило зробити через ORM
+      // Шукаємо або в назві фільму, або в імені актора
       where[Op.or] = [
         { title: { [Op.like]: `%${search}%` } },
         sequelizeMovies.literal(`EXISTS (
@@ -128,23 +137,24 @@ export const MovieModel = {
       )`)
       ];
     } else {
-      // Якщо немає search — обробляємо title + actor як AND
+      // Якщо загального пошуку немає, виконуємо фільтрацію окремо
       if (title) {
+        // Фільтр по назві фільму (LIKE)
         where.title = { [Op.like]: `%${title}%` };
       }
-
       if (actor) {
+        // Фільтр по імені актора в include-блоці
         include[0].where = { name: { [Op.like]: `%${actor}%` } };
       }
     }
 
+    // Повертаємо знайдені фільми з урахуванням фільтрів, без сортування
     return Movie.findAll({
-      where,
-      include,
-      order: [[sort, order]],
-      limit,
-      offset,
-      distinct: true,
+      where,         // фільтр по таблиці Movie
+      include,       // фільтр по зв’язаній таблиці Actor (через include)
+      limit,         // пагінація
+      offset,        // зсув для пагінації
+      distinct: true // забезпечує коректну пагінацію при JOIN'ах (уникає дублікатів)
     } as any);
   },
 

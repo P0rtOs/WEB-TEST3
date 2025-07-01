@@ -1,8 +1,10 @@
 import { Movie, CreateMovieDTO, UpdateMovieDTO, SanitizedMovie } from '../types/movie';
 import { MovieModel } from '../models/movie.model';
-import { ActorModel } from '../models/actor.model';
+import { Actor, ActorModel } from '../models/actor.model';
 import { parseMoviesFromText } from '../utils/parseMoviesFromText';
 import { serviceLogger } from '../utils/logger';
+import { arraysEqual } from '../utils/arraysEqual';
+
 
 const prefix = '[MovieService]';
 
@@ -24,9 +26,42 @@ const movieService = {
 
     return MovieModel.getById(movie.id);
   },
-
+  // При перевірці не було помічено, але апдейт був незалежним від перевірки на дублікати
+  // Тож тут це виправляю
   async updateMovie(id: number, data: UpdateMovieDTO) {
     serviceLogger.info(`${prefix} Updating movie ID ${id}`);
+
+    const currentMovie = await MovieModel.getById(id);
+    if (!currentMovie) {
+      serviceLogger.warn(`${prefix} Movie not found for update. ID: ${id}`);
+      return null;
+    }
+
+    // Підготувати повний новий стан фільму
+    const newTitle = data.title ?? currentMovie.title;
+    const newYear = data.year ?? currentMovie.year;
+    const newFormat = data.format ?? currentMovie.format;
+    const newActors = data.actors ?? (currentMovie.actors ? currentMovie.actors.map(a => a.name) : []); // якщо актори зв'язані
+
+    const isDuplicate = await movieService.isExactMovieDuplicate(newTitle, newYear, newFormat, newActors);
+
+    // Якщо знайшли такий дублікат, але з іншим ID — блокуємо
+    if (isDuplicate) {
+      const duplicates = await MovieModel.getAllByExactTitle(newTitle);
+      const duplicate = duplicates.find(movie => {
+        const movieActors = movie.actors ? movie.actors.map(a => a.name) : [];
+        return movie.id !== id &&
+          movie.year === newYear &&
+          movie.format === newFormat &&
+          arraysEqual(movieActors, newActors);
+      });
+
+
+      if (duplicate) {
+        serviceLogger.warn(`${prefix} Duplicate movie detected on update. Skipping update.`);
+        return null;
+      }
+    }
 
     const updated = await MovieModel.update(id, data);
     if (!updated) {
@@ -72,9 +107,24 @@ const movieService = {
     return MovieModel.searchByTitle(title);
   },
 
-  async getMovieByTitle(title: string) {
-    return MovieModel.getByExactTitle(title);
+  async isExactMovieDuplicate(
+    title: string,
+    year: number,
+    format: string,
+    actors: string[]
+  ): Promise<boolean> {
+    const movies = await MovieModel.getAllByExactTitle(title);
+    return movies.some(movie => {
+      const movieActors = movie.actors ? movie.actors.map(a => a.name) : [];
+      return (
+        movie.year === year &&
+        movie.format === format &&
+        arraysEqual(movieActors, actors)
+      );
+    });
   },
+
+
 
   async searchMovies(query: any): Promise<Movie[]> {
     const {
@@ -87,10 +137,12 @@ const movieService = {
       offset = '0',
     } = query;
 
+    // Парсимо параметри limit/offset/order
     const parsedLimit = parseInt(limit, 10);
     const parsedOffset = parseInt(offset, 10);
     const parsedOrder = (order as string).toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
 
+    // Логуємо параметри пошуку
     serviceLogger.debug(`${prefix} Searching movies with filters: ${JSON.stringify({
       title,
       search,
@@ -101,18 +153,42 @@ const movieService = {
       offset: parsedOffset,
     })}`);
 
+    // Отримуємо всі фільми з фільтрами без сортування
     const movies = await MovieModel.searchWithFilters({
       title: title || undefined,
       actor: actor || undefined,
       search: search || undefined,
-      sort: sort || 'id',
-      order: parsedOrder,
       limit: isNaN(parsedLimit) ? 20 : parsedLimit,
       offset: isNaN(parsedOffset) ? 0 : parsedOffset,
     });
 
+    // Ініціалізуємо локалізований сортувальник для української мови
+    const collator = new Intl.Collator('uk', { sensitivity: 'base' });
+
+    // Сортуємо результат вручну у памʼяті
+    movies.sort((a, b) => {
+      const valA = (a as any)[sort];
+      const valB = (b as any)[sort];
+
+      // Якщо значення — рядки (наприклад, title), порівнюємо через collator
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        const cmp = collator.compare(valA, valB);
+        return parsedOrder === 'DESC' ? -cmp : cmp;
+      }
+
+      // Якщо значення — числа (наприклад, id або year), звичайне числове порівняння
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        return parsedOrder === 'DESC' ? valB - valA : valA - valB;
+      }
+
+      // Якщо типи неочікувані або різні — не змінюємо порядок
+      return 0;
+    });
+
+    // Логуємо кількість знайдених фільмів
     serviceLogger.info(`${prefix} Search result: ${movies.length} movie(s) found.`);
 
+    // Повертаємо очищену DTO-структуру фільмів (без акторів та інших зайвих звʼязків)
     return movies.map(movie => ({
       id: movie.id,
       title: movie.title,
@@ -122,6 +198,7 @@ const movieService = {
       updatedAt: movie.updatedAt,
     }));
   },
+
 
   async searchByActor(actor: string) {
     serviceLogger.debug(`${prefix} Searching movies by actor: "${actor}"`);
@@ -137,8 +214,8 @@ const movieService = {
 
     for (const dto of parsedMovies) {
       try {
-        const existing = await MovieModel.getByExactTitle(dto.title);
-        if (existing) {
+        const isDuplicate = await movieService.isExactMovieDuplicate(dto.title, dto.year, dto.format, dto.actors);
+        if (isDuplicate) {
           serviceLogger.warn(`${prefix} Duplicate movie skipped during import: "${dto.title}"`);
           failedTitles.push(dto.title);
           continue;
@@ -168,6 +245,8 @@ const movieService = {
       failed: failedTitles.length ? failedTitles : undefined,
     };
   },
+
 };
 
 export default movieService;
+
