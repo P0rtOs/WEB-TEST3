@@ -137,12 +137,10 @@ const movieService = {
       offset = '0',
     } = query;
 
-    // Парсимо параметри limit/offset/order
     const parsedLimit = parseInt(limit, 10);
     const parsedOffset = parseInt(offset, 10);
     const parsedOrder = (order as string).toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
 
-    // Логуємо параметри пошуку
     serviceLogger.debug(`${prefix} Searching movies with filters: ${JSON.stringify({
       title,
       search,
@@ -163,32 +161,33 @@ const movieService = {
     });
 
     // Ініціалізуємо локалізований сортувальник для української мови
+    // Якщо сюди вписати ще en, то мови будуть вперемішку
     const collator = new Intl.Collator('uk', { sensitivity: 'base' });
+    // Кирилиця буде йти першою, напевне це те що очікується?
 
-    // Сортуємо результат вручну у памʼяті
+    // Сортуємо результат вручну, бо Sequelize не впорався
     movies.sort((a, b) => {
       const valA = (a as any)[sort];
       const valB = (b as any)[sort];
 
-      // Якщо значення — рядки (наприклад, title), порівнюємо через collator
+      // Якщо значення — рядки, порівнюємо через collator
       if (typeof valA === 'string' && typeof valB === 'string') {
         const cmp = collator.compare(valA, valB);
         return parsedOrder === 'DESC' ? -cmp : cmp;
       }
 
-      // Якщо значення — числа (наприклад, id або year), звичайне числове порівняння
+      // Якщо числа, звичайне числове порівняння
       if (typeof valA === 'number' && typeof valB === 'number') {
         return parsedOrder === 'DESC' ? valB - valA : valA - valB;
       }
 
-      // Якщо типи неочікувані або різні — не змінюємо порядок
+      // В разі чого повернемо 0
       return 0;
     });
 
     // Логуємо кількість знайдених фільмів
     serviceLogger.info(`${prefix} Search result: ${movies.length} movie(s) found.`);
 
-    // Повертаємо очищену DTO-структуру фільмів (без акторів та інших зайвих звʼязків)
     return movies.map(movie => ({
       id: movie.id,
       title: movie.title,
