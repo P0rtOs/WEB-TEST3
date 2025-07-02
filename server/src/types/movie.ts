@@ -20,3 +20,7 @@ export type CreateMovieDTO = Omit<Movie, 'id' | 'actors' | 'createdAt' | 'update
 export type UpdateMovieDTO = Partial<CreateMovieDTO>;
 
 export type SanitizedMovie = Omit<Movie, 'actors'>;
+
+export type UpdateMovieResult =
+  | { success: true; movie: Movie }
+  | { success: false; code: 'NOT_FOUND' | 'DUPLICATE' | 'OTHER'; message?: string };

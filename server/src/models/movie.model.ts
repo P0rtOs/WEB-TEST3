@@ -96,7 +96,7 @@ async getAllByExactTitle(title: string): Promise<Movie[]> {
   return allMovies.filter(movie => normalize(movie.title) === normalizedInput);
 },
 
-// Нова функція для фільтрів. Нічого не робить, 
+// Нова функція для фільтрів. Нічого не оброблює, 
 // бо в SQlite кирилиця повністю ламає будь-які спроби щось фільтрувати
 // Особливо взагалі ніяк не виходило додати пошук не чутливий до регістру
 async searchWithFilters(): Promise<Movie[]> {

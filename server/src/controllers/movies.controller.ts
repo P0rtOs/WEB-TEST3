@@ -37,28 +37,55 @@ export default {
 
   async updateMovie(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const updatedMovie = await movieService.updateMovie(Number(req.params.id), req.body);
-      if (!updatedMovie) {
-        res.status(200).json(
-          {
-            "status": 0,
-            "error": {
-              "fields": {
-                "id": req.params.id
-              },
-              "code": "MOVIE_NOT_FOUND"
-            }
+      const result = await movieService.updateMovie(Number(req.params.id), req.body);
+
+      if (!result.success) {
+        if (result.code === 'NOT_FOUND') {
+          res.status(200).json({
+            status: 0,
+            error: {
+              fields: { id: req.params.id },
+              code: 'MOVIE_NOT_FOUND',
+              message: 'Movie not found.',
+            },
           });
+          return;
+        }
+
+        if (result.code === 'DUPLICATE') {
+          res.status(200).json({
+            status: 0,
+            error: {
+              code: 'MOVIE_DUPLICATE',
+              message: result.message || 'Duplicate movie exists.',
+            },
+          });
+          return;
+        }
+
+        // Можна додати ще інші обробки помилок, якщо будуть
+
+        res.status(500).json({
+          status: 0,
+          error: {
+            code: 'UNKNOWN_ERROR',
+            message: 'An unknown error occurred.',
+          },
+        });
         return;
       }
+
+      // Якщо успішно
       res.status(200).json({
-        data: updatedMovie,
+        data: result.movie,
         status: 1,
       });
+
     } catch (error) {
       next(error);
     }
   },
+
 
   async deleteMovie(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -235,7 +262,4 @@ export default {
       next(err);
     }
   }
-
-
-
 };

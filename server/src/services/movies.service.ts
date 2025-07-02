@@ -1,4 +1,4 @@
-import { Movie, CreateMovieDTO, UpdateMovieDTO, SanitizedMovie } from '../types/movie';
+import { Movie, CreateMovieDTO, UpdateMovieDTO, SanitizedMovie, UpdateMovieResult } from '../types/movie';
 import { MovieModel } from '../models/movie.model';
 import { ActorModel } from '../models/actor.model';
 import { parseMoviesFromText } from '../utils/parseMoviesFromText';
@@ -26,26 +26,22 @@ const movieService = {
 
     return MovieModel.getById(movie.id);
   },
+
   // При перевірці не було помічено, але апдейт був незалежним від перевірки на дублікати
   // Тож тут це виправляю
-  async updateMovie(id: number, data: UpdateMovieDTO) {
-    serviceLogger.info(`${prefix} Updating movie ID ${id}`);
 
+  async updateMovie(id: number, data: UpdateMovieDTO): Promise<UpdateMovieResult> {
     const currentMovie = await MovieModel.getById(id);
     if (!currentMovie) {
-      serviceLogger.warn(`${prefix} Movie not found for update. ID: ${id}`);
-      return null;
+      return { success: false, code: 'NOT_FOUND' };
     }
 
-    // Підготувати повний новий стан фільму
     const newTitle = data.title ?? currentMovie.title;
     const newYear = data.year ?? currentMovie.year;
     const newFormat = data.format ?? currentMovie.format;
-    const newActors = data.actors ?? (currentMovie.actors ? currentMovie.actors.map(a => a.name) : []); // якщо актори зв'язані
+    const newActors = data.actors ?? (currentMovie.actors ? currentMovie.actors.map(a => a.name) : []);
 
     const isDuplicate = await movieService.isExactMovieDuplicate(newTitle, newYear, newFormat, newActors);
-
-    // Якщо знайшли такий дублікат, але з іншим ID — блокуємо
     if (isDuplicate) {
       const duplicates = await MovieModel.getAllByExactTitle(newTitle);
       const duplicate = duplicates.find(movie => {
@@ -56,27 +52,27 @@ const movieService = {
           arraysEqual(movieActors, newActors);
       });
 
-
       if (duplicate) {
-        serviceLogger.warn(`${prefix} Duplicate movie detected on update. Skipping update.`);
-        return null;
+        return { success: false, code: 'DUPLICATE', message: 'Duplicate movie exists with same title, year, format, and actors.' };
       }
     }
 
     const updated = await MovieModel.update(id, data);
     if (!updated) {
-      serviceLogger.warn(`${prefix} Movie not found for update. ID: ${id}`);
-      return null;
+      return { success: false, code: 'NOT_FOUND' };
     }
 
     if (data.actors) {
-      serviceLogger.debug(`${prefix} Updating actors for movie ID ${id}: ${JSON.stringify(data.actors)}`);
       const actors = await ActorModel.resolveActors(data.actors);
       await MovieModel.setActors(updated, actors);
     }
 
-    serviceLogger.info(`${prefix} Movie ID ${id} updated successfully.`);
-    return MovieModel.getById(id);
+    const updatedMovie = await MovieModel.getById(id);
+    if (!updatedMovie) {
+      return { success: false, code: 'NOT_FOUND' };
+    }
+
+    return { success: true, movie: updatedMovie };
   },
 
   async deleteMovie(id: number) {
