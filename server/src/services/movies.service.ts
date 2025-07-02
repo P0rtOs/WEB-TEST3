@@ -1,6 +1,6 @@
 import { Movie, CreateMovieDTO, UpdateMovieDTO, SanitizedMovie } from '../types/movie';
 import { MovieModel } from '../models/movie.model';
-import { Actor, ActorModel } from '../models/actor.model';
+import { ActorModel } from '../models/actor.model';
 import { parseMoviesFromText } from '../utils/parseMoviesFromText';
 import { serviceLogger } from '../utils/logger';
 import { arraysEqual } from '../utils/arraysEqual';
@@ -113,9 +113,26 @@ const movieService = {
     format: string,
     actors: string[]
   ): Promise<boolean> {
+    // Локалізований collator для укр. мови
+    const collator = new Intl.Collator('uk-UA', { sensitivity: 'base' });
+
+    // Нормалізація рядка
+    const normalize = (str: string) =>
+      str.normalize('NFC').trim().replace(/\s{2,}/g, ' ');
+
+    // Масиви акторів: нормалізація + сортування + порівняння
+    const arraysEqual = (arr1: string[], arr2: string[]) => {
+      if (arr1.length !== arr2.length) return false;
+      const sorted1 = arr1.map(normalize).sort(collator.compare);
+      const sorted2 = arr2.map(normalize).sort(collator.compare);
+      return sorted1.every((val, i) => collator.compare(val, sorted2[i]) === 0);
+    };
+
+    // Отримуємо всі фільми з таким normalized title (перевірка вже всередині getAllByExactTitle)
     const movies = await MovieModel.getAllByExactTitle(title);
+
     return movies.some(movie => {
-      const movieActors = movie.actors ? movie.actors.map(a => a.name) : [];
+      const movieActors = movie.actors?.map(a => a.name) ?? [];
       return (
         movie.year === year &&
         movie.format === format &&
@@ -123,8 +140,6 @@ const movieService = {
       );
     });
   },
-
-
 
   async searchMovies(query: any): Promise<Movie[]> {
     const {
@@ -137,8 +152,8 @@ const movieService = {
       offset = '0',
     } = query;
 
-    const parsedLimit = parseInt(limit, 10);
-    const parsedOffset = parseInt(offset, 10);
+    const parsedLimit = Math.max(0, parseInt(limit, 10) || 20);
+    const parsedOffset = Math.max(0, parseInt(offset, 10) || 0);
     const parsedOrder = (order as string).toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
 
     serviceLogger.debug(`${prefix} Searching movies with filters: ${JSON.stringify({
@@ -151,44 +166,57 @@ const movieService = {
       offset: parsedOffset,
     })}`);
 
-    // Отримуємо всі фільми з фільтрами без сортування
-    const movies = await MovieModel.searchWithFilters({
-      title: title || undefined,
-      actor: actor || undefined,
-      search: search || undefined,
-      limit: isNaN(parsedLimit) ? 20 : parsedLimit,
-      offset: isNaN(parsedOffset) ? 0 : parsedOffset,
+    const allMovies = await MovieModel.searchWithFilters();
+
+    const normTitle = title?.toLocaleLowerCase('uk');
+    const normActor = actor?.toLocaleLowerCase('uk');
+    const normSearch = search?.toLocaleLowerCase('uk');
+
+    const filtered = allMovies.filter(movie => {
+      const movieTitle = movie.title.toLocaleLowerCase('uk');
+      const movieActors = movie.actors?.map(a => a.name.toLocaleLowerCase('uk')) || [];
+
+      if (normSearch) {
+        return (
+          movieTitle.includes(normSearch) ||
+          movieActors.some(actorName => actorName.includes(normSearch))
+        );
+      }
+
+      if (normTitle && !movieTitle.includes(normTitle)) {
+        return false;
+      }
+
+      if (normActor && !movieActors.some(actorName => actorName.includes(normActor))) {
+        return false;
+      }
+
+      return true;
     });
 
-    // Ініціалізуємо локалізований сортувальник для української мови
-    // Якщо сюди вписати ще en, то мови будуть вперемішку
     const collator = new Intl.Collator('uk', { sensitivity: 'base' });
-    // Кирилиця буде йти першою, напевне це те що очікується?
 
-    // Сортуємо результат вручну, бо Sequelize не впорався
-    movies.sort((a, b) => {
+    filtered.sort((a, b) => {
       const valA = (a as any)[sort];
       const valB = (b as any)[sort];
 
-      // Якщо значення — рядки, порівнюємо через collator
       if (typeof valA === 'string' && typeof valB === 'string') {
         const cmp = collator.compare(valA, valB);
         return parsedOrder === 'DESC' ? -cmp : cmp;
       }
 
-      // Якщо числа, звичайне числове порівняння
       if (typeof valA === 'number' && typeof valB === 'number') {
         return parsedOrder === 'DESC' ? valB - valA : valA - valB;
       }
 
-      // В разі чого повернемо 0
       return 0;
     });
 
-    // Логуємо кількість знайдених фільмів
-    serviceLogger.info(`${prefix} Search result: ${movies.length} movie(s) found.`);
+    const paginated = filtered.slice(parsedOffset, parsedOffset + parsedLimit);
 
-    return movies.map(movie => ({
+    serviceLogger.info(`${prefix} Search result: ${filtered.length} movie(s) matched.`);
+
+    return paginated.map(movie => ({
       id: movie.id,
       title: movie.title,
       year: movie.year,
@@ -197,7 +225,6 @@ const movieService = {
       updatedAt: movie.updatedAt,
     }));
   },
-
 
   async searchByActor(actor: string) {
     serviceLogger.debug(`${prefix} Searching movies by actor: "${actor}"`);
@@ -248,4 +275,3 @@ const movieService = {
 };
 
 export default movieService;
-

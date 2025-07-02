@@ -164,22 +164,36 @@ export default {
 
   async searchMovies(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const options = req.query; // Передаємо усі query, тому прийдеться скористатись any
+      const options = req.query; // query залишаємо any
 
       const movies = await movieService.searchMovies(options as any);
+
+      const hasFilters = !!(options.title || options.actor || options.search);
+
+      if (!movies.length) {
+        res.status(200).json({
+          status: 0,
+          error: {
+            code: hasFilters ? 'NO_MATCHES_FOUND' : 'NO_MOVIES',
+            message: hasFilters
+              ? 'No movies found matching your filters.'
+              : 'No movies found. Please try again later.',
+          },
+        });
+        return;
+      }
 
       res.status(200).json({
         data: movies,
         meta: {
           total: movies.length,
         },
-        status: 1
+        status: 1,
       });
     } catch (err) {
       next(err);
     }
   },
-
 
   async importMoviesFromFile(req: Request, res: Response, next: NextFunction) {
     try {
@@ -191,11 +205,21 @@ export default {
             code: "NO_FILE"
           }
         });
-        return
+        return;
+      }
+
+      if (req.file.mimetype !== 'text/plain') {
+        res.status(415).json({
+          status: 0,
+          error: {
+            code: "UNSUPPORTED_MEDIA_TYPE",
+            fields: { file: "Only .txt files (text/plain) are supported for import." }
+          }
+        });
+        return;
       }
 
       const content = req.file.buffer.toString('utf-8');
-
       const { imported, total, movies, failed } = await movieService.importFromText(content);
 
       res.status(200).json({
@@ -203,7 +227,7 @@ export default {
         meta: {
           imported,
           total,
-          failed: failed
+          failed
         },
         status: 1
       });
@@ -211,6 +235,7 @@ export default {
       next(err);
     }
   }
+
 
 
 };
